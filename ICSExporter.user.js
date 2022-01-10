@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.1
+// @version      0.2
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
 // @require      https://code.jquery.com/jquery-3.4.1.min.js
+// @updateURL    https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
+// @downloadURL  https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
