@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.2
+// @version      0.3
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
+// @match        https://www.icscards.nl/mijn*
 // @require      https://code.jquery.com/jquery-3.4.1.min.js
 // @updateURL    https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
 // @downloadURL  https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
@@ -36,12 +37,20 @@
             width: 500px;
             height: auto;
             position: fixed;
-            left: 15px;
+            left: -475px;
             top: 10%;
             overflow: hidden;
             background: #fff;
             border-radius: 5px;
             padding: 15px;
+            transition: 100ms;
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+
+        div.ics-exporter:hover, div.ics-exporter:focus, div.ics-exporter:focus-within {
+            left: 0px;
+            box-shadow: 8px 8px 15px -15px #000;
         }
 
         div.ics-exporter h1, div.ics-exporter h4 {
@@ -102,10 +111,18 @@
         }
     `);
 
+    function lM(m) {
+        console.log('[ICS Exporter]: ', m);
+    }
+
     function bootICS() {
+        lM('Append elements');
         appendElements();
+        lM('Append style');
         appendStyle();
+        lM('Get card number');
         getCardNumber();
+        lM('Card number: ' + cardNumber);
     }
 
     function appendElements() {
@@ -168,7 +185,7 @@
     function getPeriods() {
         var token = getCookie('XSRF-TOKEN');
         $.ajax({
-            url: "https://icscards.nl/sec/nl/sec/periods",
+            url: window.location.origin + "/sec/nl/sec/periods",
             data: {accountNumber: cardNumber},
             type: "GET",
             beforeSend: function (xhr) {
@@ -224,14 +241,14 @@
     function getDataForPeriod(period, callback) {
         console.log('[ICS] getDataForPeriod');
         var token = getCookie('XSRF-TOKEN');
-        var _url = "https://icscards.nl/sec/nl/sec/transactions";
+        var _url = window.location.origin + "/sec/nl/sec/transactions";
         var _data = {
             accountNumber: cardNumber,
             flushCache: true
         }
         if(period.slice(0, 3) == 'all') {
             // https://icscards.nl/sec/nl/sec/transactions/search?fromDate=2021-01-01&accountNumber=<red>
-            _url = "https://icscards.nl/sec/nl/sec/transactions/search";
+            _url = window.location.origin + "/sec/nl/sec/transactions/search";
             _data.fromDate = lastPeriod.period + "-01";
         } else if(period.slice(0, 3) == 'cur') {
             /// url = https://icscards.nl/sec/nl/sec/transactions?accountNumber=<red>&flushCache=true
@@ -254,12 +271,16 @@
         });
     }
 
-    if (window.location.href === "https://icscards.nl/mijn/overview") {
-        console.log('Correcte url');
-        window.jQuery341 = $.noConflict(true);
-        window.jQuery341(function ($) {
-            bootICS();
-        });
+    if (window.location.host === "www.icscards.nl" ||
+        window.location.host === "icscards.nl") {
+        if(window.location.pathname === "/mijn/overview") {
+            console.log('Correcte url');
+            window.jQuery341 = $.noConflict(true);
+            window.jQuery341(function ($) {
+                lM('Boot');
+                bootICS();
+            });
+        }
     }
 
 })();
