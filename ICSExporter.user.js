@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.3
+// @version      0.4
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -226,14 +226,24 @@
     }
 
     function getCSVData(period, callback) {
-        console.log('[ICS] getCSVData ', period)
+        console.log('[ICS] getCSVData ', period);
         getDataForPeriod(period, function(items) {
             console.log('[ICS] getDataForPeriod callback');
-            let replacer = (key, value) => value === null ? '' : value // specify how you want to handle null values here
-            let header = Object.keys(items[0])
-            let csv = items.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
-            csv.unshift(header.join(','))
-            csv = csv.join('\r\n')
+
+            let replacer = (key, value) => value === null ? '' : value
+            let header = Object.keys(items[0]);
+
+            // Filter out rows where typeOfTransaction is "A" or batchSequenceNr is -1
+            let filteredItems = items.filter(row => {
+                let typeOfTransaction = String(row.typeOfTransaction).trim();
+                let batchSequenceNr = String(row.batchSequenceNr).trim();
+                return typeOfTransaction !== "A" && batchSequenceNr !== "-1";
+            });
+
+            let csv = filteredItems.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+            csv.unshift(header.join(','));
+            csv = csv.join('\r\n');
+
             callback(csv);
         });
     }
