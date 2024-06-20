@@ -5,6 +5,8 @@
 // @author       Oon
 // @match        https://icscards.nl/mijn*
 // @match        https://www.icscards.nl/mijn*
+// @match        https://icscards.nl/abnamro/mijn/*
+// @match        https://www.icscards.nl/abnamro/mijn/*
 // @require      https://code.jquery.com/jquery-3.4.1.min.js
 // @updateURL    https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
 // @downloadURL  https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
