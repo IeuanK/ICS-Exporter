@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.5
+// @version      0.6
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -283,16 +283,10 @@
         });
     }
 
-    if (window.location.host === "www.icscards.nl" ||
-        window.location.host === "icscards.nl") {
-        if(window.location.pathname === "/mijn/overview") {
-            console.log('Correcte url');
-            window.jQuery341 = $.noConflict(true);
-            window.jQuery341(function ($) {
-                lM('Boot');
-                bootICS();
-            });
-        }
-    }
+    window.jQuery341 = $.noConflict(true);
+    window.jQuery341(function ($) {
+        lM('Boot');
+        bootICS();
+    });
 
 })();
