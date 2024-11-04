@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.6
+// @version      0.7
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -21,10 +21,14 @@
     var cardNumberInterval = null;
     var lastPeriod = null;
     var firstPeriod = null;
+    var years = [];
     var ICSExporterWindow = $(`
         <div class="ics-exporter" style="display: none;">
             <h1>ICS Exporter</h1>
             <h4>Kaartnummer: <span class="card-no"></span></h4>
+            <select id="jaren">
+                <option value="all">Alle</option>
+            </select>
             <ul class="overzichten">
             </ul>
         </div>
@@ -112,6 +116,25 @@
             display: none;
         }
     `);
+
+    ICSExporterWindow.on('change', '#jaren', function(ev, el) {
+        let sel = ICSExporterWindow.find('#jaren').val();
+        ICSExporterWindow.find('.overzichten').find('li').each(function(index, node) {
+            let n = $(node);
+            if(sel == 'all') {
+                n.removeClass('hidden');
+                return true;
+            }
+            if(n.attr('data-year') != sel) {
+                n.addClass('hidden');
+                return true;
+            } else {
+                n.removeClass('hidden');
+                return true;
+            }
+
+        });
+    });
 
     function lM(m) {
         console.log('[ICS Exporter]: ', m);
@@ -202,16 +225,29 @@
     function loadPeriods(data) {
         if(data.length) {
             $.each(data, function(index, period) {
-                var periodNode = $('<li data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'"><strong>'+period.period+'</strong>'+(period.currentPeriod ? '*' : '')+' ('+period.startDatePeriod+' t/m '+period.endDatePeriod+') <a class="ics-exporter-dl" data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'">DL</a></li>');
+                let year = period.period.slice(0,4);
+                if(years.indexOf(year) === -1) {
+                    years.push(year);
+                }
+                var periodNode = $('<li data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'" data-year="'+year+'"><strong>'+period.period+'</strong>'+(period.currentPeriod ? '*' : '')+' ('+period.startDatePeriod+' t/m '+period.endDatePeriod+') <a class="ics-exporter-dl" data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'">DL</a></li>');
                 ICSExporterWindow.find('.overzichten').append(periodNode);
                 if(firstPeriod === null) {
                     firstPeriod = period;
                 }
                 lastPeriod = period;
             });
-            var periodNode = $('<li data-period="all-'+lastPeriod.period+'"><strong>All</strong> ('+lastPeriod.period+' t/m '+firstPeriod.period+')<a class="ics-exporter-dl" data-period="all-'+lastPeriod.period+'">DL</a></li>');
+            var periodNode = $('<li data-period="all-'+lastPeriod.period+'" data-year="all"><strong>All</strong> ('+lastPeriod.period+' t/m '+firstPeriod.period+')<a class="ics-exporter-dl" data-period="all-'+lastPeriod.period+'">DL</a></li>');
             ICSExporterWindow.find('.overzichten').append(periodNode);
         }
+        let highestYear = 0;
+        $.each(years, function(index, year) {
+            var jaarOption = $('<option val="'+year+'">'+year+'</option>');
+            ICSExporterWindow.find('#jaren').append(jaarOption);
+            if(year > highestYear) {
+                highestYear = year;
+            }
+        });
+        ICSExporterWindow.find('#jaren').val(highestYear).change();
     }
 
     function getCookie(cookieName) {
@@ -233,13 +269,22 @@
             console.log('[ICS] getDataForPeriod callback');
 
             let replacer = (key, value) => value === null ? '' : value
-            let header = Object.keys(items[0]);
+            let header = [...Object.keys(items[0]), 'payee', 'cleared'];
 
             // Filter out rows where typeOfTransaction is "A" or batchSequenceNr is -1
-            let filteredItems = items.filter(row => {
+            let filteredItems = items.map(row => {
+//                console.log(row);
                 let typeOfTransaction = String(row.typeOfTransaction).trim();
                 let batchSequenceNr = String(row.batchSequenceNr).trim();
-                return typeOfTransaction !== "A" && batchSequenceNr !== "-1";
+                row.payee = row.description;
+                if(typeOfTransaction == "A" && batchSequenceNr == "-1") {
+                    row.description = "[R] " + row.description;
+                    row.cleared = false;
+                } else {
+                    row.cleared = true;
+                }
+//                console.log(row);
+                return row;
             });
 
             let csv = filteredItems.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
@@ -283,10 +328,16 @@
         });
     }
 
-    window.jQuery341 = $.noConflict(true);
-    window.jQuery341(function ($) {
-        lM('Boot');
-        bootICS();
-    });
+    if (window.location.host === "www.icscards.nl" ||
+        window.location.host === "icscards.nl") {
+        if(window.location.pathname.indexOf("/mijn/overview") !== -1) {
+            console.log('Correcte url');
+            window.jQuery341 = $.noConflict(true);
+            window.jQuery341(function ($) {
+                lM('Boot');
+                bootICS();
+            });
+        }
+    }
 
 })();
