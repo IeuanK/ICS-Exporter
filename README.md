@@ -3,6 +3,11 @@ CSV exporter user script for icscards.nl
 
 Allows for downloading of CSV file for each period, including running. Also provides an option to download all data at once.
 
+### Other scripts
+
+- [https://github.com/IeuanK/AmazonExporter](Amazon Exporter)
+- [https://github.com/IeuanK/BolExporter](Bol.com Exporter)
+
 ### Installation & usage
 
 - Open the userscript URL: https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js    
