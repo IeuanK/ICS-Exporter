@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.7
+// @version      0.8
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
 // @match        https://www.icscards.nl/mijn*
 // @match        https://icscards.nl/abnamro/mijn/*
 // @match        https://www.icscards.nl/abnamro/mijn/*
-// @require      https://code.jquery.com/jquery-3.4.1.min.js
+// @match        https://www.icscards.nl/web/consumer/dashboard
+// @require      https://code.jquery.com/jquery-3.6.0.min.js
 // @updateURL    https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
 // @downloadURL  https://github.com/IeuanK/ICS-Exporter/raw/main/ICSExporter.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
-
 (function () {
     'use strict';
 
@@ -43,7 +43,7 @@
             width: 500px;
             height: auto;
             position: fixed;
-            left: -475px;
+            right: -475px;
             top: 10%;
             overflow: hidden;
             background: #fff;
@@ -52,10 +52,11 @@
             transition: 100ms;
             max-height: 75vh;
             overflow-y: auto;
+            font-family: sans-serif;
         }
 
         div.ics-exporter:hover, div.ics-exporter:focus, div.ics-exporter:focus-within {
-            left: 0px;
+            right: 0px;
             box-shadow: 8px 8px 15px -15px #000;
         }
 
@@ -159,12 +160,16 @@
     }
 
     function checkCardNumberNodes() {
-        $('.cardinfo-container .b-card-info__details div').each(function () {
+        $('.account-number').each(function () {
             let _txt = $(this).text().trim();
             if (/^([0-9]{6,})$/.test(_txt)) {
                 cardNumber = parseInt(_txt, 10);
+                lM('Card number found: ' + cardNumber);
             }
         });
+        if(!cardNumber) {
+            lM('No card number found');
+        }
     }
 
     function getCardNumber() {
@@ -328,16 +333,9 @@
         });
     }
 
-    if (window.location.host === "www.icscards.nl" ||
-        window.location.host === "icscards.nl") {
-        if(window.location.pathname.indexOf("/mijn/overview") !== -1) {
-            console.log('Correcte url');
-            window.jQuery341 = $.noConflict(true);
-            window.jQuery341(function ($) {
-                lM('Boot');
-                bootICS();
-            });
-        }
-    }
+    $(() => {
+        lM('Boot');
+        bootICS();
+    });
 
 })();
