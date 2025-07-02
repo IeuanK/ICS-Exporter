@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.8
+// @version      0.9
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
