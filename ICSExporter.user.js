@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.9
+// @version      0.10
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -25,13 +25,17 @@
     var years = [];
     var ICSExporterWindow = $(`
         <div class="ics-exporter" style="display: none;">
-            <h1>ICS Exporter</h1>
-            <h4>Kaartnummer: <span class="card-no"></span></h4>
-            <select id="jaren">
-                <option value="all">Alle</option>
-            </select>
-            <ul class="overzichten">
-            </ul>
+            <div class="ics-header">
+                <h1>ICS Exporter</h1>
+                <h4>Kaartnummer: <span class="card-no"></span></h4>
+            </div>
+            <div class="ics-content">
+                <select id="jaren">
+                    <option value="all">Alle</option>
+                </select>
+                <ul class="overzichten">
+                </ul>
+            </div>
         </div>
     `);
     var ICSExporterStyle = $('<style type="text/css" id="ics-exporter-style"></style>').html(`
@@ -41,36 +45,110 @@
 
         div.ics-exporter {
             display: block;
-            width: 500px;
+            width: 420px;
             height: auto;
             position: fixed;
-            right: -475px;
+            right: -380px;
             top: 10%;
-            overflow: hidden;
-            background: #fff;
-            border-radius: 5px;
-            padding: 15px;
-            transition: 100ms;
-            max-height: 75vh;
-            overflow-y: auto;
-            font-family: sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 12px 0 0 12px;
+            padding: 0;
+            transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+            max-height: 80vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            box-shadow: -2px 0 15px rgba(0, 0, 0, 0.08);
+            z-index: 9999;
+        }
+
+        div.ics-exporter::before {
+            content: 'CSV';
+            position: absolute;
+            left: -32px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            background: linear-gradient(135deg, #4a6cf7 0%, #6366f1 100%);
+            color: white;
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
         }
 
         div.ics-exporter:hover, div.ics-exporter:focus, div.ics-exporter:focus-within {
             right: 0px;
-            box-shadow: 8px 8px 15px -15px #000;
+            box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
         }
 
-        div.ics-exporter h1, div.ics-exporter h4 {
-            margin-top: 5px;
-            margin-bottom: 5px;
-            display: inline-block;
-            height: 42px;
-            line-height: 42px;
+        div.ics-exporter .ics-header {
+            background: linear-gradient(135deg, #4a6cf7 0%, #6366f1 100%);
+            padding: 16px 20px;
+            margin: 0;
+            border-radius: 12px 0 0 0;
+        }
+
+        div.ics-exporter h1 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            display: block;
         }
 
         div.ics-exporter h4 {
-            float: right;
+            margin: 0;
+            font-size: 13px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.85);
+            display: block;
+        }
+
+        div.ics-exporter .ics-content {
+            padding: 16px 20px;
+            max-height: calc(80vh - 80px);
+            overflow-y: auto;
+        }
+
+        div.ics-exporter .ics-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        div.ics-exporter .ics-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        div.ics-exporter .ics-content::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        div.ics-exporter .ics-content::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        div.ics-exporter select#jaren {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #374151;
+            background: #ffffff;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        div.ics-exporter select#jaren:hover {
+            border-color: #6366f1;
+        }
+
+        div.ics-exporter select#jaren:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
 
         div.ics-exporter ul.overzichten {
@@ -82,36 +160,71 @@
         }
 
         div.ics-exporter ul.overzichten li {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             list-style: none;
-            margin: 0 0 5px;
-            padding: 0;
+            margin: 0 0 8px;
+            padding: 10px 12px;
             width: 100%;
-            height: 30px;
-            line-height: 30px;
-            padding: 0 5px;
-            background: rgba(155, 243, 178, 0.15);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #374151;
+            transition: all 0.2s ease;
         }
 
-        div.ics-exporter ul.overzichten li a.ics-exporter-dl,
-        div.ics-exporter ul.overzichten li a.ics-exporter-dl:hover,
-        div.ics-exporter ul.overzichten li a.ics-exporter-dl:active,
-        div.ics-exporter ul.overzichten li a.ics-exporter-dl:visited {
-            display: inline-block;
-            float: right;
-            background: rgba(0,0,0,0.1);
-            width: 30px;
-            height: 30px;
-            line-height: 30px;
-            text-align: center;
-            cursor: pointer;
-            font-weight: bold;
-            color: #404073;
+        div.ics-exporter ul.overzichten li.hidden {
+            display: none;
+        }
+
+        div.ics-exporter ul.overzichten li strong {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        div.ics-exporter ul.overzichten li.loaded {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-color: #a7f3d0;
         }
 
         div.ics-exporter ul.overzichten li:not(.loaded) {
             cursor: pointer;
-            background: rgba(100,100,100,0.15);
+        }
+
+        div.ics-exporter ul.overzichten li:not(.loaded):hover {
+            background: #f8fafc;
+            border-color: #6366f1;
+            transform: translateX(-2px);
+        }
+
+        div.ics-exporter ul.overzichten li a.ics-exporter-dl,
+        div.ics-exporter ul.overzichten li a.ics-exporter-dl:visited {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #4a6cf7 0%, #6366f1 100%);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        div.ics-exporter ul.overzichten li a.ics-exporter-dl:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        div.ics-exporter ul.overzichten li a.ics-exporter-dl:active {
+            transform: scale(0.95);
         }
 
         div.ics-exporter ul.overzichten li:not(.loaded) a.ics-exporter-dl {
