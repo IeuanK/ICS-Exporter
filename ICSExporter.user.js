@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.10
+// @version      0.11
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -23,6 +23,7 @@
     var lastPeriod = null;
     var firstPeriod = null;
     var years = [];
+    var periodsByYear = {};
     var ICSExporterWindow = $(`
         <div class="ics-exporter" style="display: none;">
             <div class="ics-header">
@@ -230,24 +231,70 @@
         div.ics-exporter ul.overzichten li:not(.loaded) a.ics-exporter-dl {
             display: none;
         }
+
+        div.ics-exporter ul.overzichten li.bulk-option {
+            background: linear-gradient(135deg, #4a6cf7 0%, #6366f1 100%);
+            border-color: #4a6cf7;
+            color: #ffffff;
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option strong {
+            color: #ffffff;
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option:not(.loaded):hover {
+            background: linear-gradient(135deg, #3b5de7 0%, #5254e1 100%);
+            border-color: #3b5de7;
+            transform: translateX(-2px);
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option.loaded {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border-color: #22c55e;
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option a.ics-exporter-dl,
+        div.ics-exporter ul.overzichten li.bulk-option a.ics-exporter-dl:visited {
+            background: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option a.ics-exporter-dl:hover {
+            background: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        div.ics-exporter ul.overzichten li.bulk-option .bulk-progress {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-left: 8px;
+        }
     `);
 
-    ICSExporterWindow.on('change', '#jaren', function(ev, el) {
+    ICSExporterWindow.on('change', '#jaren', function() {
         let sel = ICSExporterWindow.find('#jaren').val();
         ICSExporterWindow.find('.overzichten').find('li').each(function(index, node) {
             let n = $(node);
-            if(sel == 'all') {
-                n.removeClass('hidden');
-                return true;
-            }
-            if(n.attr('data-year') != sel) {
-                n.addClass('hidden');
-                return true;
-            } else {
-                n.removeClass('hidden');
-                return true;
-            }
+            let itemYear = n.attr('data-year');
+            let isBulkOption = n.hasClass('bulk-option');
+            let isAlleBulk = isBulkOption && itemYear === 'all';
+            let isYearBulk = isBulkOption && itemYear !== 'all';
 
+            if(sel === 'all') {
+                // Show "Alle" bulk option and all individual periods, but NOT year bulk options
+                if(isYearBulk) {
+                    n.addClass('hidden');
+                } else {
+                    n.removeClass('hidden');
+                }
+            } else {
+                // Show items matching selected year (including year bulk option), hide others
+                if(itemYear === sel) {
+                    n.removeClass('hidden');
+                } else {
+                    n.addClass('hidden');
+                }
+            }
         });
     });
 
@@ -311,18 +358,37 @@
             ev.preventDefault();
             var period = _el.attr('data-period');
             console.log('[ICS] DL click, ' + period);
-            getCSVData(period, function(csvData) {
-                console.log('[ICS] getCSVData callback');
-                _el.addClass('loaded');
 
-                let btn = _el.find('.ics-exporter-dl');
-                csvData = 'data:application/csv;charset=utf-8,' + encodeURIComponent(csvData);
-                btn.attr({
-                    'download': period + '.csv',
-                    'href': csvData,
-                    'target': '_blank'
+            // Check if this is a year bulk download
+            if(period.slice(0, 5) === 'year-') {
+                var year = period.slice(5);
+                console.log('[ICS] Year bulk download for ' + year);
+                getYearCSVData(year, _el, function(csvData) {
+                    console.log('[ICS] getYearCSVData callback');
+                    _el.addClass('loaded');
+
+                    let btn = _el.find('.ics-exporter-dl');
+                    csvData = 'data:application/csv;charset=utf-8,' + encodeURIComponent(csvData);
+                    btn.attr({
+                        'download': year + '.csv',
+                        'href': csvData,
+                        'target': '_blank'
+                    });
                 });
-            });
+            } else {
+                getCSVData(period, function(csvData) {
+                    console.log('[ICS] getCSVData callback');
+                    _el.addClass('loaded');
+
+                    let btn = _el.find('.ics-exporter-dl');
+                    csvData = 'data:application/csv;charset=utf-8,' + encodeURIComponent(csvData);
+                    btn.attr({
+                        'download': period + '.csv',
+                        'href': csvData,
+                        'target': '_blank'
+                    });
+                });
+            }
         });
     }
 
@@ -343,24 +409,53 @@
 
     function loadPeriods(data) {
         if(data.length) {
+            // First pass: collect periods and group by year
             $.each(data, function(index, period) {
                 let year = period.period.slice(0,4);
                 if(years.indexOf(year) === -1) {
                     years.push(year);
+                    periodsByYear[year] = {
+                        periods: [],
+                        startDate: null,
+                        endDate: null
+                    };
                 }
-                var periodNode = $('<li data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'" data-year="'+year+'"><strong>'+period.period+'</strong>'+(period.currentPeriod ? '*' : '')+' ('+period.startDatePeriod+' t/m '+period.endDatePeriod+') <a class="ics-exporter-dl" data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'">DL</a></li>');
-                ICSExporterWindow.find('.overzichten').append(periodNode);
+                periodsByYear[year].periods.push(period);
+                // Track earliest start date and latest end date for each year
+                if(periodsByYear[year].startDate === null || period.startDatePeriod < periodsByYear[year].startDate) {
+                    periodsByYear[year].startDate = period.startDatePeriod;
+                }
+                if(periodsByYear[year].endDate === null || period.endDatePeriod > periodsByYear[year].endDate) {
+                    periodsByYear[year].endDate = period.endDatePeriod;
+                }
                 if(firstPeriod === null) {
                     firstPeriod = period;
                 }
                 lastPeriod = period;
             });
-            var periodNode = $('<li data-period="all-'+lastPeriod.period+'" data-year="all"><strong>All</strong> ('+lastPeriod.period+' t/m '+firstPeriod.period+')<a class="ics-exporter-dl" data-period="all-'+lastPeriod.period+'">DL</a></li>');
-            ICSExporterWindow.find('.overzichten').append(periodNode);
+
+            // Add "Alle" bulk option at the top (only visible when "Alle" is selected)
+            var alleNode = $('<li class="bulk-option" data-period="all-'+lastPeriod.period+'" data-year="all"><span><strong>Alle</strong> ('+lastPeriod.startDatePeriod+' t/m '+firstPeriod.endDatePeriod+')</span><a class="ics-exporter-dl" data-period="all-'+lastPeriod.period+'">DL</a></li>');
+            ICSExporterWindow.find('.overzichten').append(alleNode);
+
+            // Add year bulk options (sorted descending)
+            years.sort().reverse();
+            $.each(years, function(index, year) {
+                var yearData = periodsByYear[year];
+                var yearNode = $('<li class="bulk-option" data-period="year-'+year+'" data-year="'+year+'"><span><strong>'+year+'</strong> ('+yearData.startDate+' t/m '+yearData.endDate+')</span><a class="ics-exporter-dl" data-period="year-'+year+'">DL</a></li>');
+                ICSExporterWindow.find('.overzichten').append(yearNode);
+            });
+
+            // Add individual periods (sorted by period descending - newest first)
+            $.each(data, function(index, period) {
+                let year = period.period.slice(0,4);
+                var periodNode = $('<li data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'" data-year="'+year+'"><span><strong>'+period.period+'</strong>'+(period.currentPeriod ? '*' : '')+' ('+period.startDatePeriod+' t/m '+period.endDatePeriod+')</span><a class="ics-exporter-dl" data-period="'+(period.currentPeriod ? 'cur-' : '')+period.period+'">DL</a></li>');
+                ICSExporterWindow.find('.overzichten').append(periodNode);
+            });
         }
         let highestYear = 0;
         $.each(years, function(index, year) {
-            var jaarOption = $('<option val="'+year+'">'+year+'</option>');
+            var jaarOption = $('<option value="'+year+'">'+year+'</option>');
             ICSExporterWindow.find('#jaren').append(jaarOption);
             if(year > highestYear) {
                 highestYear = year;
@@ -412,6 +507,79 @@
 
             callback(csv);
         });
+    }
+
+    function getYearCSVData(year, element, callback) {
+        console.log('[ICS] getYearCSVData for year ' + year);
+        var yearData = periodsByYear[year];
+        if(!yearData || !yearData.periods.length) {
+            console.log('[ICS] No periods found for year ' + year);
+            return;
+        }
+
+        var allItems = [];
+        var periodsToFetch = yearData.periods.slice(); // Clone array
+        var totalPeriods = periodsToFetch.length;
+        var fetchedCount = 0;
+
+        // Add progress indicator
+        var progressSpan = element.find('.bulk-progress');
+        if(progressSpan.length === 0) {
+            element.find('span').first().append('<span class="bulk-progress">(0/' + totalPeriods + ')</span>');
+            progressSpan = element.find('.bulk-progress');
+        }
+
+        function fetchNextPeriod() {
+            if(periodsToFetch.length === 0) {
+                // All periods fetched, generate CSV
+                console.log('[ICS] All periods fetched, total items: ' + allItems.length);
+                if(allItems.length === 0) {
+                    progressSpan.text('(geen data)');
+                    return;
+                }
+
+                let replacer = (key, value) => value === null ? '' : value;
+                let header = [...Object.keys(allItems[0]), 'payee', 'cleared'];
+
+                let filteredItems = allItems.map(row => {
+                    let typeOfTransaction = String(row.typeOfTransaction).trim();
+                    let batchSequenceNr = String(row.batchSequenceNr).trim();
+                    row.payee = row.description;
+                    if(typeOfTransaction == "A" && batchSequenceNr == "-1") {
+                        row.description = "[R] " + row.description;
+                        row.cleared = false;
+                    } else {
+                        row.cleared = true;
+                    }
+                    return row;
+                });
+
+                let csv = filteredItems.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+                csv.unshift(header.join(','));
+                csv = csv.join('\r\n');
+
+                progressSpan.text('');
+                callback(csv);
+                return;
+            }
+
+            var periodObj = periodsToFetch.shift();
+            var periodId = (periodObj.currentPeriod ? 'cur-' : '') + periodObj.period;
+            console.log('[ICS] Fetching period ' + periodId);
+
+            getDataForPeriod(periodId, function(items) {
+                fetchedCount++;
+                progressSpan.text('(' + fetchedCount + '/' + totalPeriods + ')');
+
+                if(items && items.length) {
+                    allItems = allItems.concat(items);
+                }
+                // Fetch next period
+                fetchNextPeriod();
+            });
+        }
+
+        fetchNextPeriod();
     }
 
     function getDataForPeriod(period, callback) {
