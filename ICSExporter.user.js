@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ICS Exporter
-// @version      0.11
+// @version      0.12
 // @description  ICS naar CSV
 // @author       Oon
 // @match        https://icscards.nl/mijn*
@@ -33,9 +33,27 @@
             <div class="ics-content">
                 <select id="jaren">
                     <option value="all">Alle</option>
+                    <option value="custom">Aangepast</option>
                 </select>
                 <ul class="overzichten">
                 </ul>
+                <div class="custom-range" style="display: none;">
+                    <div class="form-group">
+                        <label for="start-date">Startdatum</label>
+                        <input type="date" id="start-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="end-date">Einddatum</label>
+                        <input type="date" id="end-date">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="skip-reserved" checked>
+                            <span>Gereserveerd overslaan</span>
+                        </label>
+                    </div>
+                    <button id="custom-download" class="download-btn">Download</button>
+                </div>
             </div>
         </div>
     `);
@@ -269,15 +287,113 @@
             opacity: 0.9;
             margin-left: 8px;
         }
+
+        div.ics-exporter .custom-range {
+            padding: 4px 0;
+        }
+
+        div.ics-exporter .custom-range .form-group {
+            margin-bottom: 12px;
+        }
+
+        div.ics-exporter .custom-range label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        div.ics-exporter .custom-range input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #374151;
+            background: #ffffff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        div.ics-exporter .custom-range input[type="date"]:hover {
+            border-color: #6366f1;
+        }
+
+        div.ics-exporter .custom-range input[type="date"]:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        div.ics-exporter .custom-range .checkbox-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 0;
+        }
+
+        div.ics-exporter .custom-range .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            accent-color: #6366f1;
+            cursor: pointer;
+        }
+
+        div.ics-exporter .custom-range .checkbox-group span {
+            font-weight: 400;
+        }
+
+        div.ics-exporter .custom-range .download-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #4a6cf7 0%, #6366f1 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        div.ics-exporter .custom-range .download-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        div.ics-exporter .custom-range .download-btn:active {
+            transform: translateY(0);
+        }
+
+        div.ics-exporter .custom-range .download-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
     `);
 
     ICSExporterWindow.on('change', '#jaren', function() {
         let sel = ICSExporterWindow.find('#jaren').val();
+        let listEl = ICSExporterWindow.find('.overzichten');
+        let customEl = ICSExporterWindow.find('.custom-range');
+
+        if(sel === 'custom') {
+            // Show custom date range form, hide list
+            listEl.hide();
+            customEl.show();
+            return;
+        }
+
+        // Show list, hide custom form
+        listEl.show();
+        customEl.hide();
+
         ICSExporterWindow.find('.overzichten').find('li').each(function(index, node) {
             let n = $(node);
             let itemYear = n.attr('data-year');
             let isBulkOption = n.hasClass('bulk-option');
-            let isAlleBulk = isBulkOption && itemYear === 'all';
             let isYearBulk = isBulkOption && itemYear !== 'all';
 
             if(sel === 'all') {
@@ -389,6 +505,41 @@
                     });
                 });
             }
+        });
+
+        // Custom date range download handler
+        $(document).on('click', '.ics-exporter #custom-download', function(ev) {
+            ev.preventDefault();
+            var btn = $(this);
+            var startDate = ICSExporterWindow.find('#start-date').val();
+            var endDate = ICSExporterWindow.find('#end-date').val();
+            var skipReserved = ICSExporterWindow.find('#skip-reserved').is(':checked');
+
+            if(!startDate || !endDate) {
+                alert('Vul beide datums in');
+                return;
+            }
+
+            if(startDate > endDate) {
+                alert('Startdatum moet voor einddatum liggen');
+                return;
+            }
+
+            btn.prop('disabled', true).text('Downloaden...');
+
+            getCustomRangeCSVData(startDate, endDate, skipReserved, function(csvData) {
+                btn.prop('disabled', false).text('Download');
+
+                // Trigger download
+                var filename = 'ICS_' + startDate + '_' + endDate + '.csv';
+                var dataUri = 'data:application/csv;charset=utf-8,' + encodeURIComponent(csvData);
+                var link = document.createElement('a');
+                link.setAttribute('href', dataUri);
+                link.setAttribute('download', filename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
         });
     }
 
@@ -580,6 +731,75 @@
         }
 
         fetchNextPeriod();
+    }
+
+    function getCustomRangeCSVData(startDate, endDate, skipReserved, callback) {
+        console.log('[ICS] getCustomRangeCSVData from ' + startDate + ' to ' + endDate);
+        var token = getCookie('XSRF-TOKEN');
+
+        $.ajax({
+            url: window.location.origin + "/sec/nl/sec/transactions/search",
+            data: {
+                accountNumber: cardNumber,
+                fromDate: startDate,
+                untilDate: endDate
+            },
+            type: "GET",
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader('X-XSRF-TOKEN', token);
+            },
+            success: function (items) {
+                console.log('[ICS] getCustomRangeCSVData received ' + items.length + ' items');
+
+                if(!items || items.length === 0) {
+                    alert('Geen transacties gevonden in deze periode');
+                    callback('');
+                    return;
+                }
+
+                let replacer = (key, value) => value === null ? '' : value;
+                let header = [...Object.keys(items[0]), 'payee', 'cleared'];
+
+                let filteredItems = items.filter(row => {
+                    let typeOfTransaction = String(row.typeOfTransaction).trim();
+                    let batchSequenceNr = String(row.batchSequenceNr).trim();
+                    let isReserved = typeOfTransaction === "A" && batchSequenceNr === "-1";
+
+                    // Skip reserved transactions if checkbox is checked
+                    if(skipReserved && isReserved) {
+                        return false;
+                    }
+                    return true;
+                }).map(row => {
+                    let typeOfTransaction = String(row.typeOfTransaction).trim();
+                    let batchSequenceNr = String(row.batchSequenceNr).trim();
+                    row.payee = row.description;
+                    if(typeOfTransaction === "A" && batchSequenceNr === "-1") {
+                        row.description = "[R] " + row.description;
+                        row.cleared = false;
+                    } else {
+                        row.cleared = true;
+                    }
+                    return row;
+                });
+
+                if(filteredItems.length === 0) {
+                    alert('Geen transacties gevonden (alleen gereserveerde transacties in deze periode)');
+                    callback('');
+                    return;
+                }
+
+                let csv = filteredItems.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+                csv.unshift(header.join(','));
+                csv = csv.join('\r\n');
+
+                callback(csv);
+            },
+            error: function() {
+                alert('Fout bij ophalen van transacties');
+                callback('');
+            }
+        });
     }
 
     function getDataForPeriod(period, callback) {
