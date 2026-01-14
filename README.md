@@ -18,4 +18,5 @@ Allows for downloading of CSV file for each period, including running. Also prov
 - Click any date to generate the CSV file  
 - Click the DL link that appears to download the CSV file
 
-![20220110212949-2wcdq2w99s](https://user-images.githubusercontent.com/1075598/148834834-5d0ce9e1-a05e-4244-96d2-e7c748f5fab3.png)
+<img width="574" height="925" alt="CleanShot Google Chrome2026-01-14 at 05 35 27" src="https://github.com/user-attachments/assets/7fc6584f-d808-4ebf-86ec-058c979db430" />
+
